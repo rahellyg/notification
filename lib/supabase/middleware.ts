@@ -7,9 +7,20 @@ export async function updateSession(request: NextRequest) {
 		request,
 	});
 
+	const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+	const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+	// Avoid crashing the entire middleware on missing env vars in production.
+	if (!supabaseUrl || !supabaseAnonKey) {
+		console.error(
+			"Missing Supabase environment variables for middleware session handling"
+		);
+		return response;
+	}
+
 	const supabase = createServerClient(
-		process.env.NEXT_PUBLIC_SUPABASE_URL!,
-		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+		supabaseUrl,
+		supabaseAnonKey,
 		{
 			cookies: {
 				getAll() {
@@ -30,7 +41,13 @@ export async function updateSession(request: NextRequest) {
 		}
 	);
 
-	const user = await supabase.auth.getUser();
+	let user;
+	try {
+		user = await supabase.auth.getUser();
+	} catch (error) {
+		console.error("Supabase middleware getUser failed", error);
+		return response;
+	}
 	const url = new URL(request.url);
 	const next = url.searchParams.get("next");
 	if (user.data.user?.id) {
