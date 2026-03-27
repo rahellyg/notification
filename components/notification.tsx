@@ -37,19 +37,18 @@ export default function NotificationRequest() {
 	async function subscribeUser() {
 		if ("serviceWorker" in navigator) {
 			try {
-				// Check if service worker is already registered
-				const registration =
-					await navigator.serviceWorker.getRegistration();
-				if (registration) {
-					generateSubscribeEndPoint(registration);
-				} else {
-					// Register the service worker
-					const newRegistration =
-						await navigator.serviceWorker.register("/sw.js");
-					// Subscribe to push notifications
-					generateSubscribeEndPoint(newRegistration);
+				let registration = await navigator.serviceWorker.getRegistration();
+				if (!registration) {
+					registration = await navigator.serviceWorker.register("/sw.js");
 				}
+
+				// Wait for active worker before subscribing to avoid AbortError.
+				const readyRegistration = await navigator.serviceWorker.ready;
+				await generateSubscribeEndPoint(
+					registration?.active ? registration : readyRegistration
+				);
 			} catch (error) {
+				console.error(error);
 				toast.error(
 					"Error during service worker registration or subscription:"
 				);
